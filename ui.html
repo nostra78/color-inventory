@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root {
+      --bg: var(--figma-color-bg, #ffffff);
+      --text: var(--figma-color-text, #1e1e1e);
+      --muted: var(--figma-color-text-secondary, #6d6d6d);
+      --border: var(--figma-color-border, #e5e5e5);
+      --fill: var(--figma-color-bg-secondary, #f5f5f5);
+      --brand: var(--figma-color-bg-brand, #0d99ff);
+      --brand-text: var(--figma-color-text-onbrand, #ffffff);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 11px;
+      font: 9.5px/1.4 Inter, system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 9.5px;
+      font-weight: 600;
+    }
+
+    .stats {
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .row-actions,
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--fill);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 7px;
+      font: 9.5px/1.4 Inter, system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: var(--brand-text);
+    }
+
+    button.active {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    button.danger {
+      color: #d92d20;
+      border-color: #d92d20;
+    }
+
+    select {
+      max-width: 112px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      background: var(--fill);
+      font: 9.5px/1.4 Inter, system-ui, sans-serif;
+    }
+
+    input[type="text"] {
+      min-width: 210px;
+      flex: 1;
+      padding: 5px 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--bg);
+      font: 9.5px/1.4 Inter, system-ui, sans-serif;
+    }
+
+    .database {
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--fill);
+    }
+
+    .database-title {
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .table-wrap {
+      max-height: 560px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 4px 6px;
+      font: 9.5px/1.4 Inter, system-ui, sans-serif;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--fill);
+      font-weight: 600;
+    }
+
+    .swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 24px 8px;
+      text-align: center;
+    }
+
+    .component-group td {
+      position: sticky;
+      top: 22px;
+      z-index: 1;
+      padding: 6px;
+      font-weight: 600;
+      background: var(--fill);
+      border-top: 1px solid var(--border);
+    }
+
+    .status-line {
+      margin-bottom: 8px;
+      color: var(--muted);
+    }
+
+    .suggested-name {
+      min-width: 135px !important;
+      width: 135px;
+      font-family: ui-monospace, Consolas, monospace;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Color Inventory</h1>
+  <div class="stats" id="stats">Select frames, then Analyze.</div>
+
+  <div class="row-actions">
+    <select id="appearanceMode">
+      <option value="">Choose appearance</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+    <button class="primary" id="analyze" disabled>Analyze</button>
+    <button id="copy" disabled>Copy CSV</button>
+    <button id="export" disabled>Export CSV</button>
+  </div>
+
+  <div class="database">
+    <div class="database-title" id="dbStatus">Database: empty</div>
+    <div class="row-actions">
+      <button class="primary" id="addToDb" disabled>Add / Update DB</button>
+    </div>
+    <div class="row-actions">
+      <button id="viewCurrent" disabled>Current selection</button>
+      <button id="viewDb">View database</button>
+      <button id="exportDb" disabled>Export DB CSV</button>
+      <button id="backupDb" disabled>Backup JSON</button>
+      <button id="exportFigma" disabled>Export Tokens JSON</button>
+      <button id="importDb">Import DB JSON</button>
+      <button class="danger" id="clearDb" disabled>Clear DB</button>
+      <input id="importFile" type="file" accept=".json,application/json" hidden />
+    </div>
+  </div>
+
+  <div class="row-actions">
+    <strong id="selectedCount">0 selected</strong>
+    <select id="currentViewFilter">
+      <option value="all">Show all</option>
+      <option value="unassigned">Show unassigned</option>
+    </select>
+    <input
+      id="bulkPalette"
+      type="text"
+      list="paletteOptions"
+      value="Gray"
+      placeholder="Choose or type group"
+    />
+    <datalist id="paletteOptions">
+      <option value="Gray"></option>
+      <option value="Cyan"></option>
+      <option value="Violet"></option>
+      <option value="Success"></option>
+      <option value="Warning"></option>
+      <option value="Danger"></option>
+      <option value="Incident"></option>
+      <option value="Unassigned"></option>
+    </datalist>
+    <button id="applyGroup" disabled>Apply group</button>
+  </div>
+  <div class="status-line" id="paletteStatus"></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><input id="selectAll" type="checkbox" /></th>
+          <th></th>
+          <th>HEX</th>
+          <th>Opacity</th>
+          <th>Uses</th>
+          <th>Manual group</th>
+          <th>Type</th>
+          <th>Binding</th>
+          <th>Token</th>
+          <th>Component</th>
+          <th>Appearance</th>
+          <th>Suggested name</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td class="empty" colspan="12">No data yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let rows = [];
+    let currentRows = [];
+    let databaseRows = [];
+    let database = { version: 2, sources: {} };
+    let viewMode = "current";
+    let frameCount = 0;
+    const selectedKeys = new Set();
+
+    const statsEl = document.getElementById("stats");
+    const analyzeBtn = document.getElementById("analyze");
+    const appearanceModeEl = document.getElementById("appearanceMode");
+    const tbody = document.getElementById("tbody");
+    const copyBtn = document.getElementById("copy");
+    const exportBtn = document.getElementById("export");
+    const addToDbBtn = document.getElementById("addToDb");
+    const viewCurrentBtn = document.getElementById("viewCurrent");
+    const viewDbBtn = document.getElementById("viewDb");
+    const exportDbBtn = document.getElementById("exportDb");
+    const backupDbBtn = document.getElementById("backupDb");
+    const exportFigmaBtn = document.getElementById("exportFigma");
+    const importDbBtn = document.getElementById("importDb");
+    const clearDbBtn = document.getElementById("clearDb");
+    const importFileEl = document.getElementById("importFile");
+    const dbStatusEl = document.getElementById("dbStatus");
+    const selectedCountEl = document.getElementById("selectedCount");
+    const currentViewFilterEl =
+      document.getElementById("currentViewFilter");
+    const bulkPaletteEl = document.getElementById("bulkPalette");
+    const applyGroupBtn = document.getElementById("applyGroup");
+    const selectAllEl = document.getElementById("selectAll");
+    const paletteStatusEl = document.getElementById("paletteStatus");
+    appearanceModeEl.onchange = () => {
+      analyzeBtn.disabled = !appearanceModeEl.value;
+    };
+
+    currentViewFilterEl.onchange = () => {
+      if (viewMode !== "current") return;
+      selectedKeys.clear();
+      rows = currentVisibleRows();
+      updateStats();
+      render();
+    };
+
+    selectAllEl.onchange = () => {
+      selectedKeys.clear();
+      if (selectAllEl.checked) {
+        rows.forEach((row) => {
+          selectedKeys.add(row.colorKey || row.key);
+        });
+      }
+      render();
+    };
+
+    function normalizePalette(value) {
+      const input = String(value || "").trim();
+      const known = [
+        "Gray",
+        "Cyan",
+        "Violet",
+        "Success",
+        "Warning",
+        "Danger",
+        "Incident",
+        "Chart",
+        "Unassigned"
+      ];
+      const match = known.find(
+        (item) => item.toLowerCase() === input.toLowerCase()
+      );
+      return match || input;
+    }
+
+    applyGroupBtn.onclick = () => {
+      const keys = Array.from(selectedKeys);
+      if (!keys.length) return;
+      const palette = normalizePalette(bulkPaletteEl.value);
+      if (!palette) return;
+      bulkPaletteEl.value = palette;
+      [currentRows, databaseRows].forEach((list) => {
+        list.forEach((row) => {
+          if (keys.indexOf(row.colorKey || row.key) !== -1) {
+            row.palette = palette;
+          }
+        });
+      });
+      if (!database.assignments) database.assignments = {};
+      keys.forEach((key) => {
+        if (palette === "Unassigned") {
+          delete database.assignments[key];
+        } else {
+          database.assignments[key] = palette;
+        }
+      });
+      parent.postMessage({
+        pluginMessage: {
+          type: "assign-many",
+          keys,
+          palette
+        }
+      }, "*");
+      if (viewMode === "database" && palette === "Unassigned") {
+        databaseRows = databaseRows.filter(
+          (row) => keys.indexOf(row.colorKey || row.key) === -1
+        );
+        rows = databaseRows;
+      }
+      if (viewMode === "current") {
+        rows = currentVisibleRows();
+      }
+      selectedKeys.clear();
+      exportFigmaBtn.disabled = databaseRows.length === 0;
+      updateStats();
+      render();
+    };
+
+    analyzeBtn.onclick = () => {
+      parent.postMessage({
+        pluginMessage: {
+          type: "analyze",
+          appearance: appearanceModeEl.value
+        }
+      }, "*");
+    };
+
+    addToDbBtn.onclick = () => {
+      parent.postMessage({
+        pluginMessage: {
+          type: "add-to-database",
+          assignments: database.assignments || {}
+        }
+      }, "*");
+    };
+
+    viewCurrentBtn.onclick = () => {
+      viewMode = "current";
+      currentViewFilterEl.disabled = false;
+      rows = currentVisibleRows();
+      selectedKeys.clear();
+      updateStats();
+      render();
+    };
+
+    viewDbBtn.onclick = () => {
+      parent.postMessage({
+        pluginMessage: { type: "get-database" }
+      }, "*");
+    };
+
+    exportDbBtn.onclick = () => {
+      downloadText(
+        "color-inventory-database.csv",
+        toCsv(databaseRows),
+        "text/csv;charset=utf-8;"
+      );
+    };
+
+    backupDbBtn.onclick = () => {
+      downloadText(
+        "color-inventory-database.json",
+        JSON.stringify(database, null, 2),
+        "application/json;charset=utf-8;"
+      );
+    };
+
+    exportFigmaBtn.onclick = () => {
+      downloadText(
+        "core-2-primitives.tokens.json",
+        JSON.stringify(toTokensJson(), null, 2),
+        "application/json;charset=utf-8;"
+      );
+    };
+
+    importDbBtn.onclick = () => importFileEl.click();
+
+    clearDbBtn.onclick = () => {
+      const approved = confirm(
+        "Clear all sources, assignments and suggested names?"
+      );
+      if (!approved) return;
+      parent.postMessage({
+        pluginMessage: { type: "clear-database" }
+      }, "*");
+    };
+
+    importFileEl.onchange = () => {
+      const file = importFileEl.files && importFileEl.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(String(reader.result));
+          parent.postMessage({
+            pluginMessage: {
+              type: "import-database",
+              database: imported
+            }
+          }, "*");
+        } catch (e) {
+          dbStatusEl.textContent = "Database: invalid JSON";
+        }
+        importFileEl.value = "";
+      };
+      reader.readAsText(file);
+    };
+
+    copyBtn.onclick = async () => {
+      const csv = toCsv(rows);
+      try {
+        await navigator.clipboard.writeText(csv);
+        copyBtn.textContent = "Copied";
+        setTimeout(() => { copyBtn.textContent = "Copy CSV"; }, 1200);
+      } catch (e) {
+        copyBtn.textContent = "Copy failed";
+      }
+    };
+
+    exportBtn.onclick = () => {
+      downloadText(
+        viewMode === "database"
+          ? "color-inventory-database-filtered.csv"
+          : "color-inventory-current.csv",
+        toCsv(rows),
+        "text/csv;charset=utf-8;"
+      );
+    };
+
+    function downloadText(fileName, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function dtcgColorValue(hex, opacity) {
+      const base = String(hex).replace("#", "").slice(0, 6).toUpperCase();
+      const alpha = Number(opacity);
+      return {
+        colorSpace: "srgb",
+        components: [
+          parseInt(base.slice(0, 2), 16) / 255,
+          parseInt(base.slice(2, 4), 16) / 255,
+          parseInt(base.slice(4, 6), 16) / 255
+        ],
+        alpha: Number.isFinite(alpha)
+          ? Math.max(0, Math.min(1, alpha))
+          : 1,
+        hex: "#" + base
+      };
+    }
+
+    function tokenDescription(row) {
+      const components = (row.components || []).length
+        ? row.components.join(", ")
+        : "не определены";
+      return "Использований: " + row.uses +
+        ". Компоненты: " + components + ".";
+    }
+
+    function toTokensJson() {
+      const allowed = databaseRows.filter(
+        (row) => row.palette !== "Unassigned"
+      );
+      const generated = automaticNames(allowed);
+      const color = {};
+
+      allowed.forEach((row) => {
+        rowAppearances(row).forEach((appearance) => {
+          const key = suggestionKey(appearance, row);
+          const suggested = flattenSuggestedName(
+            (database.suggestedNames && database.suggestedNames[key]) ||
+            generated[key]
+          );
+          setTokenByPath(color, suggested, {
+            "$value": dtcgColorValue(row.hex, row.opacity),
+            "$type": "color",
+            "$description": tokenDescription(row)
+          });
+        });
+      });
+
+      return { color };
+    }
+
+    function setTokenByPath(root, path, token) {
+      const parts = String(path || "")
+        .split("/")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts[0] === "color") parts.shift();
+      if (!parts.length) return;
+
+      let target = root;
+      parts.slice(0, -1).forEach((part) => {
+        if (!target[part]) target[part] = {};
+        target = target[part];
+      });
+      target[parts[parts.length - 1]] = token;
+    }
+
+    onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === "selection") {
+        frameCount = msg.count;
+        if (!rows.length) {
+          statsEl.textContent = frameCount
+            ? frameCount + " frames selected"
+            : "Select frames, then Analyze.";
+        }
+      }
+
+      if (msg.type === "empty-selection") {
+        currentRows = [];
+        if (viewMode === "current") rows = currentRows;
+        selectedKeys.clear();
+        render();
+      }
+
+      if (msg.type === "result") {
+        currentRows = msg.rows || [];
+        viewMode = "current";
+        currentViewFilterEl.disabled = false;
+        rows = currentVisibleRows();
+        frameCount = msg.frameCount;
+        selectedKeys.clear();
+        addToDbBtn.disabled = currentRows.length === 0;
+        viewCurrentBtn.disabled = currentRows.length === 0;
+        const c = msg.counts || {};
+        statsEl.textContent =
+          msg.frameCount + " frames · " +
+          msg.uniqueCount + " unique · " +
+          (c.Unassigned || 0) + " unassigned";
+        render();
+      }
+
+      if (msg.type === "database") {
+        database = msg.database || { version: 2, sources: {} };
+        databaseRows = msg.rows || [];
+        const hasDatabase = msg.sourceCount > 0;
+        const hasStoredData =
+          hasDatabase ||
+          Object.keys(database.assignments || {}).length > 0 ||
+          Object.keys(database.suggestedNames || {}).length > 0;
+        dbStatusEl.textContent =
+          "Database: " + msg.sourceCount + " frames · " +
+          msg.colorCount + " candidates";
+        exportDbBtn.disabled = !hasDatabase;
+        backupDbBtn.disabled = !hasDatabase;
+        clearDbBtn.disabled = !hasStoredData;
+        exportFigmaBtn.disabled = !databaseRows.some(
+          (row) => row.palette !== "Unassigned"
+        );
+
+        if (msg.open) {
+          viewMode = "database";
+          currentViewFilterEl.disabled = true;
+          rows = databaseRows;
+          selectedKeys.clear();
+          updateStats();
+          render();
+        }
+      }
+
+      if (msg.type === "database-cleared") {
+        database = {
+          version: 2,
+          assignments: {},
+          suggestedNames: {},
+          sources: {}
+        };
+        databaseRows = [];
+        currentRows.forEach((row) => {
+          row.palette = "Unassigned";
+        });
+        viewMode = "current";
+        currentViewFilterEl.disabled = false;
+        rows = currentVisibleRows();
+        selectedKeys.clear();
+        clearDbBtn.disabled = true;
+        updateStats();
+        render();
+      }
+    };
+
+    function currentVisibleRows() {
+      if (currentViewFilterEl.value === "unassigned") {
+        return currentRows.filter(
+          (row) => row.palette === "Unassigned"
+        );
+      }
+      return currentRows;
+    }
+
+    function csvEscape(value) {
+      return '"' + String(value).replace(/"/g, '""') + '"';
+    }
+
+    function toCsv(list) {
+      const suggested = exportSuggestionMap(list);
+      const header = [
+        "ManualGroup",
+        "HEX",
+        "Opacity",
+        "Uses",
+        "Lightness",
+        "Chroma",
+        "Hue",
+        "Properties",
+        "Binding",
+        "Variable",
+        "Style",
+        "Components",
+        "Appearances",
+        "Nodes",
+        "Sources",
+        "SuggestedNames"
+      ];
+      const lines = [header.map(csvEscape).join(",")];
+      list.forEach((row) => {
+        lines.push([
+          row.palette,
+          row.hex,
+          row.opacity,
+          row.uses,
+          row.lightness,
+          row.chroma,
+          row.hue,
+          (row.properties || []).join("|"),
+          (row.bindings || []).join("|"),
+          (row.variables || []).join("|"),
+          (row.styles || []).join("|"),
+          (row.components || []).join("|"),
+          rowAppearances(row).join("|"),
+          (row.nodes || []).join("|"),
+          (row.sources || []).join("|"),
+          (suggested[row.key] || []).join("|")
+        ].map(csvEscape).join(","));
+      });
+      return lines.join("\n");
+    }
+
+    function exportSuggestionMap(list) {
+      const result = {};
+      const generated = automaticNames(list);
+      list.forEach((row) => {
+        if (!result[row.key]) result[row.key] = [];
+        rowAppearances(row).forEach((appearance) => {
+          const key = suggestionKey(appearance, row);
+          const value = flattenSuggestedName(
+            (database.suggestedNames && database.suggestedNames[key]) ||
+            generated[key]
+          );
+          if (result[row.key].indexOf(value) === -1) {
+            result[row.key].push(value);
+          }
+        });
+      });
+      return result;
+    }
+
+    function render() {
+      const hasRows = rows.length > 0;
+      copyBtn.disabled = !hasRows;
+      exportBtn.disabled = !hasRows;
+      updateBulkStatus();
+      updatePaletteStatus();
+
+      const list = rows;
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td class="empty" colspan="12">No data yet</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = "";
+      const names = automaticNames(list);
+      const groups = groupByComponent(list);
+      Object.keys(groups).sort().forEach((component) => {
+        const groupRows = groups[component];
+        const header = document.createElement("tr");
+        header.className = "component-group";
+        const cell = document.createElement("td");
+        cell.colSpan = 12;
+        cell.textContent = component + " · " + groupRows.length + " colors";
+        header.appendChild(cell);
+        tbody.appendChild(header);
+        groupRows.forEach((row) => {
+          rowAppearances(row).forEach((appearance) => {
+            const key = suggestionKey(appearance, row);
+            appendDataRow(
+              row,
+              component,
+              appearance,
+              names[key]
+            );
+          });
+        });
+      });
+    }
+
+    function updateBulkStatus() {
+      const availableKeys = new Set(
+        rows.map((row) => row.colorKey || row.key)
+      );
+      Array.from(selectedKeys).forEach((key) => {
+        if (!availableKeys.has(key)) selectedKeys.delete(key);
+      });
+      selectedCountEl.textContent = selectedKeys.size + " selected";
+      applyGroupBtn.disabled = selectedKeys.size === 0;
+      selectAllEl.checked =
+        availableKeys.size > 0 &&
+        selectedKeys.size === availableKeys.size;
+      selectAllEl.indeterminate =
+        selectedKeys.size > 0 &&
+        selectedKeys.size < availableKeys.size;
+    }
+
+    function updatePaletteStatus() {
+      const groups = [
+        "Gray",
+        "Cyan",
+        "Violet",
+        "Success",
+        "Warning",
+        "Danger",
+        "Incident",
+        "Chart",
+        "Unassigned"
+      ];
+      const unique = {};
+      groups.forEach((group) => {
+        unique[group] = new Set();
+      });
+      const statusRows =
+        viewMode === "current" ? currentRows : databaseRows;
+      statusRows.forEach((row) => {
+        const group = unique[row.palette]
+          ? row.palette
+          : row.palette && row.palette !== "Unassigned"
+            ? "Chart"
+            : "Unassigned";
+        unique[group].add(row.key);
+      });
+      paletteStatusEl.textContent = groups
+        .map((group) => group + ": " + unique[group].size)
+        .join(" · ");
+    }
+
+    function groupByComponent(list) {
+      const groups = {};
+      list.forEach((row) => {
+        const components = row.components && row.components.length
+          ? row.components
+          : ["No component"];
+        components.forEach((component) => {
+          if (!groups[component]) groups[component] = [];
+          groups[component].push(row);
+        });
+      });
+      return groups;
+    }
+
+    function slug(value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9а-яё]+/gi, "-")
+        .replace(/^-+|-+$/g, "") || "inventory";
+    }
+
+    function inferRole(row) {
+      if (row.role) return row.role;
+      const types = row.nodeTypes || [];
+      const properties = row.properties || [];
+      if (types.indexOf("TEXT") !== -1) return "text";
+      if (
+        properties.length === 1 &&
+        properties[0] === "stroke"
+      ) return "border";
+      if (
+        types.indexOf("VECTOR") !== -1 ||
+        types.indexOf("BOOLEAN_OPERATION") !== -1
+      ) return "icon";
+      if (properties.indexOf("fill") !== -1) return "surface";
+      return "color";
+    }
+
+    function rowAppearances(row) {
+      const values = (row.appearances || []).filter(
+        (value) => value === "light" || value === "dark"
+      );
+      return values;
+    }
+
+    function flattenSuggestedName(path) {
+      return String(path || "").replace(
+        /^([^/]+)\/([^/]+)\/([^/]+)\/(\d{2})$/,
+        "$1/$2/$3-$4"
+      );
+    }
+
+    function automaticNames(list) {
+      const buckets = {};
+      const result = {};
+      list.forEach((row) => {
+        const role = inferRole(row);
+        const palette = slug(row.palette || "unassigned");
+        rowAppearances(row).forEach((appearance) => {
+          const bucketKey = appearance + "/" + palette + "/" + role;
+          if (!buckets[bucketKey]) buckets[bucketKey] = [];
+          if (!buckets[bucketKey].some((item) => item.key === row.key)) {
+            buckets[bucketKey].push(row);
+          }
+        });
+      });
+      Object.keys(buckets).forEach((bucketKey) => {
+        buckets[bucketKey]
+          .sort((a, b) => b.lightness - a.lightness)
+          .forEach((row, index) => {
+            const number = String(index + 1).padStart(2, "0");
+            const parts = bucketKey.split("/");
+            const appearance = parts[0];
+            const palette = parts[1];
+            const role = parts[2];
+            result[suggestionKey(appearance, row)] =
+              appearance + "/" + palette + "/" + role + "-" + number;
+          });
+      });
+      return result;
+    }
+
+    function suggestionKey(appearance, row) {
+      const colorKey = row.colorKey || row.key;
+      const candidate = [
+        appearance,
+        row.palette || "Unassigned",
+        inferRole(row),
+        colorKey
+      ].join("|");
+      return appearance + "@@" + candidate;
+    }
+
+    function appendDataRow(row, component, appearance, automaticName) {
+      const tr = document.createElement("tr");
+      const swatch = document.createElement("td");
+      const box = document.createElement("div");
+      box.className = "swatch";
+      box.style.background = row.hex;
+      box.style.opacity = String(row.opacity);
+      swatch.appendChild(box);
+
+      function td(text) {
+        const cell = document.createElement("td");
+        cell.textContent = text;
+        cell.title = text;
+        return cell;
+      }
+
+      const selectionCell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      const assignmentKey = row.colorKey || row.key;
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedKeys.has(assignmentKey);
+      checkbox.onchange = () => {
+        if (checkbox.checked) {
+          selectedKeys.add(assignmentKey);
+        } else {
+          selectedKeys.delete(assignmentKey);
+        }
+        render();
+      };
+      selectionCell.appendChild(checkbox);
+
+      const nameCell = document.createElement("td");
+      const nameInput = document.createElement("input");
+      const nameKey = suggestionKey(appearance, row);
+      nameInput.type = "text";
+      nameInput.className = "suggested-name";
+      nameInput.value = flattenSuggestedName(
+        (database.suggestedNames && database.suggestedNames[nameKey]) ||
+        automaticName
+      );
+      nameInput.onchange = () => {
+        if (!database.suggestedNames) database.suggestedNames = {};
+        const value = nameInput.value.trim();
+        if (value && value !== automaticName) {
+          database.suggestedNames[nameKey] = value;
+        } else {
+          delete database.suggestedNames[nameKey];
+          nameInput.value = automaticName;
+        }
+        parent.postMessage({
+          pluginMessage: {
+            type: "rename-suggestion",
+            key: nameKey,
+            value: database.suggestedNames[nameKey] || ""
+          }
+        }, "*");
+      };
+      nameCell.appendChild(nameInput);
+
+      tr.appendChild(selectionCell);
+      tr.appendChild(swatch);
+      tr.appendChild(td(row.hex));
+      tr.appendChild(td(String(row.opacity)));
+      tr.appendChild(td(String(row.uses)));
+      tr.appendChild(td(row.palette || "Unassigned"));
+      tr.appendChild(td((row.properties || []).join(" | ")));
+      tr.appendChild(td((row.bindings || []).join(" | ")));
+      tr.appendChild(td(
+        (row.variables || []).concat(row.styles || []).join(" | ")
+      ));
+      tr.appendChild(td(component));
+      tr.appendChild(td(appearance));
+      tr.appendChild(nameCell);
+      tbody.appendChild(tr);
+    }
+
+    function updateStats() {
+      const unassigned = rows.filter(
+        (row) => row.palette === "Unassigned"
+      ).length;
+      statsEl.textContent = viewMode === "database"
+        ? "Database · " + rows.length + " colors"
+        : frameCount + " frames · " +
+          rows.length + " unique · " +
+          unassigned + " unassigned";
+    }
+  </script>
+</body>
+</html>
